@@ -3,8 +3,22 @@
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
-RWStructuredBuffer<int> Result;
+#pragma use_dxc
+
+RWStructuredBuffer<uint64_t> _Keys;
+RWStructuredBuffer<uint> _Payloads;
+RWStructuredBuffer<float> _Float_Payloads;
 uint Size;
+
+float Random(float n,float factor = 10000){
+    return frac(sin(n)*factor)*frac(cos(n)*factor);
+}
+
+inline uint FloatToUint(float f)
+{
+    uint mask = -((int) (asuint(f) >> 31)) | 0x80000000;
+    return asuint(f) ^ mask;
+}
 
 [numthreads(8,1,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
@@ -12,6 +26,18 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     uint idx = id.x;
     if (idx < Size)
     {
-        Result[id.x] = 100;
+        // _Keys[idx] = (uint64_t)(Random(idx + 0.5) * 10) << 32;
+        // uint64_t key = 0;
+        float random = Random(idx + 0.5) * 10;
+        uint lower_key = FloatToUint(random);
+        // uint lower_key = idx + 10;
+        // key <<= 32;
+        // _Keys[idx] = key | lower_key;
+        _Keys[idx] = (uint64_t)lower_key;
+        // _Keys[idx] = (uint64_t)(Random(idx + 0.5) * 10);
+        _Payloads[idx] = idx;
+        _Float_Payloads[idx] = random;
+        // _Payloads[idx] = lower_key;
+        // _Payloads[idx] = Random(idx + 0.5) * 10;
     }
 }

@@ -39,9 +39,9 @@ namespace GPUInt64Sorting.Runtime
             tempGlobalHistBuffer?.Dispose();
             tempPassHistBuffer?.Dispose();
 
-            tempKeyBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, k_maxKeysAllocated, 4);
-            tempGlobalHistBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, k_radix * k_radixPasses, 4);
-            tempPassHistBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, k_radix * DivRoundUp(k_maxKeysAllocated, k_partitionSize), 4);
+            tempKeyBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, k_maxKeysAllocated, 4 * 2) { name="TempKey" };
+            tempGlobalHistBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, k_radix * k_radixPasses, 4) { name="TempGloabalHist" };
+            tempPassHistBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, k_radix * DivRoundUp(k_maxKeysAllocated, k_partitionSize), 4) { name="TempPassHist" };
         }
 
         public DeviceRadixSort(
@@ -64,10 +64,10 @@ namespace GPUInt64Sorting.Runtime
             tempGlobalHistBuffer?.Dispose();
             tempPassHistBuffer?.Dispose();
 
-            tempKeyBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, k_maxKeysAllocated, 4);
-            tempPayloadBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, k_maxKeysAllocated, 4);
-            tempGlobalHistBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, k_radix * k_radixPasses, 4);
-            tempPassHistBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, k_radix * DivRoundUp(k_maxKeysAllocated, k_partitionSize), 4);
+            tempKeyBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, k_maxKeysAllocated, 4 * 2) { name="TempKey" };
+            tempPayloadBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, k_maxKeysAllocated, 4) { name="TempPayload" };
+            tempGlobalHistBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, k_radix * k_radixPasses, 4) { name="TempGloabalHist" };
+            tempPassHistBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, k_radix * DivRoundUp(k_maxKeysAllocated, k_partitionSize), 4) { name="TempPassHist" };
         }
 
         private void InitKernels()
@@ -149,7 +149,7 @@ namespace GPUInt64Sorting.Runtime
         {
             m_cs.Dispatch(m_kernelInit, 1, 1, 1);
 
-            for (int radixShift = 0; radixShift < 32; radixShift += 8)
+            for (int radixShift = 0; radixShift < k_passBit; radixShift += 8)
             {
                 m_cs.SetInt("e_radixShift", radixShift);
 
@@ -174,7 +174,7 @@ namespace GPUInt64Sorting.Runtime
         {
             _cmd.DispatchCompute(m_cs, m_kernelInit, 1, 1, 1);
 
-            for (int radixShift = 0; radixShift < 32; radixShift += 8)
+            for (int radixShift = 0; radixShift < k_passBit; radixShift += 8)
             {
                 _cmd.SetComputeIntParam(m_cs, "e_radixShift", radixShift);
 
@@ -200,7 +200,7 @@ namespace GPUInt64Sorting.Runtime
         {
             m_cs.Dispatch(m_kernelInit, 1, 1, 1);
 
-            for (int radixShift = 0; radixShift < 32; radixShift += 8)
+            for (int radixShift = 0; radixShift < k_passBit; radixShift += 8)
             {
                 m_cs.SetInt("e_radixShift", radixShift);
 
@@ -230,7 +230,7 @@ namespace GPUInt64Sorting.Runtime
         {
             _cmd.DispatchCompute(m_cs, m_kernelInit, 1, 1, 1);
 
-            for (int radixShift = 0; radixShift < 32; radixShift += 8)
+            for (int radixShift = 0; radixShift < k_passBit; radixShift += 8)
             {
                 _cmd.SetComputeIntParam(m_cs, "e_radixShift", radixShift);
 
@@ -257,7 +257,8 @@ namespace GPUInt64Sorting.Runtime
             Assert.IsTrue(
                 _keyType == typeof(uint)    ||
                 _keyType == typeof(float)   ||
-                _keyType == typeof(int));
+                _keyType == typeof(int)     ||
+                _keyType == typeof(ulong));
         }
 
         private void AssertChecksPairs(int _inputSize, System.Type _keyType, System.Type _payloadType)
@@ -267,7 +268,8 @@ namespace GPUInt64Sorting.Runtime
             Assert.IsTrue(
                 _keyType == typeof(uint)    ||
                 _keyType == typeof(float)   ||
-                _keyType == typeof(int));
+                _keyType == typeof(int)     ||
+                _keyType == typeof(ulong));
             Assert.IsTrue(
                 _payloadType == typeof(uint)    || 
                 _payloadType == typeof(float)   || 

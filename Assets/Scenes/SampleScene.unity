@@ -421,7 +421,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 115e1ef831c47c547b930acf25cd80c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_computeShader: {fileID: 0}
+  m_computeShader: {fileID: 7200000, guid: 3229f09f422194d43b605facc8e5fde1, type: 3}
+  m_initShader: {fileID: 7200000, guid: 233f95e91c3f5da488e582c440abeaf4, type: 3}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0

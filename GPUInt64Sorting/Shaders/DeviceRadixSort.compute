@@ -20,14 +20,16 @@
 #pragma kernel Scan
 #pragma kernel Downsweep
 
-#pragma multi_compile __ KEY_UINT KEY_INT KEY_FLOAT
+#pragma multi_compile __ KEY_UINT KEY_INT KEY_FLOAT KEY_ULONG
 #pragma multi_compile __ PAYLOAD_UINT PAYLOAD_INT PAYLOAD_FLOAT
 #pragma multi_compile __ SHOULD_ASCEND
 #pragma multi_compile __ SORT_PAIRS
 
+#pragma enable_d3d11_debug_symbols
 #pragma use_dxc
 #pragma require wavebasic
 #pragma require waveballot
+#pragma require Int64BufferAtomics
 
 #define US_DIM          128U        //The number of threads in a Upsweep threadblock
 #define SCAN_DIM        128U        //The number of threads in a Scan threadblock
@@ -65,6 +67,8 @@ inline void HistogramDigitCounts(uint gtid, uint gid)
         InterlockedAdd(g_us[ExtractDigit(IntToUint(b_sort[i])) + histOffset], 1);
 #elif defined(KEY_FLOAT)
         InterlockedAdd(g_us[ExtractDigit(FloatToUint(b_sort[i])) + histOffset], 1);
+#elif defined(KEY_ULONG)
+        InterlockedAdd(g_us[ExtractDigit(b_sort[i]) + histOffset], 1);
 #endif
     }
 }

@@ -1,0 +1,15 @@
+{
+  "author": "Zhao Siwen",
+  "description": "Portable GPU sorting for int64",
+  "displayName": "GPUInt64Sorting",
+  "keywords": [
+    "unity"
+  ],
+  "license": "MIT",
+  "name": "gpu_int64_sorting",
+  "repository": "github:zhaosiwen1949/Int64RadixSort",
+  "documentationUrl": "https://github.com/zhaosiwen1949/Int64RadixSort",
+  "unity": "2021.3",
+  "unityRelease": "35f1",
+  "version": "0.1.0"
+}

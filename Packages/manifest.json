@@ -2,6 +2,7 @@
   "dependencies": {
     "asdf.b0nes.gpu_prefix_sums": "file:../GPUPrefixSums/GPUPrefixSumsUnity",
     "asdf.b0nes.gpu_sorting": "file:../GPUSorting/GPUSortingUnity",
+    "gpu_int64_sorting": "file:../GPUInt64Sorting",
     "com.unity.ai.navigation": "2.0.4",
     "com.unity.collab-proxy": "2.7.1",
     "com.unity.ide.rider": "3.0.31",

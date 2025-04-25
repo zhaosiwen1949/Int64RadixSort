@@ -1,0 +1,12 @@
+*.csproj
+*.sln
+.DS_Store
+.idea
+*.sln.DotSettings.user
+
+/builds/*
+/Library/*
+/Logs/*
+/Temp/*
+/UserSettings/*
+/obj/*

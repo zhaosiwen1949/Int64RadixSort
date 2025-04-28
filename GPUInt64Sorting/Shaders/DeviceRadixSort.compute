@@ -29,7 +29,10 @@
 #pragma use_dxc
 #pragma require wavebasic
 #pragma require waveballot
-#pragma require Int64BufferAtomics
+#pragma require wavemultiprefix
+#pragma require int64
+#pragma require int64bufferatomics
+#pragma require int64groupsharedatomics
 
 #define US_DIM          128U        //The number of threads in a Upsweep threadblock
 #define SCAN_DIM        128U        //The number of threads in a Scan threadblock

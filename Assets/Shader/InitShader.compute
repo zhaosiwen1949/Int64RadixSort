@@ -4,6 +4,7 @@
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 #pragma use_dxc
+#pragma require int64
 
 RWStructuredBuffer<uint64_t> _Keys;
 RWStructuredBuffer<uint> _Payloads;

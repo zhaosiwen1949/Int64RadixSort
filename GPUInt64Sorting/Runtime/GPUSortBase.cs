@@ -19,7 +19,7 @@ namespace GPUInt64Sorting.Runtime
         protected const int k_radix = 256;
         protected const int k_radixPasses = 8;
         protected const int k_partitionSize = 3840;
-        protected const int k_passBit = 8 * k_radixPasses;
+        protected const int k_passBit = 4 * k_radixPasses;
 
         protected const int k_minSize = 1;
         protected const int k_maxSize = 65535 * k_partitionSize;

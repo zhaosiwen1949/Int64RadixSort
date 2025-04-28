@@ -6,7 +6,7 @@
 #pragma use_dxc
 #pragma require int64
 
-RWStructuredBuffer<uint64_t> _Keys;
+RWStructuredBuffer<uint> _Keys;
 RWStructuredBuffer<uint> _Payloads;
 RWStructuredBuffer<float> _Float_Payloads;
 uint Size;
@@ -34,7 +34,8 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         // uint lower_key = idx + 10;
         // key <<= 32;
         // _Keys[idx] = key | lower_key;
-        _Keys[idx] = (uint64_t)lower_key;
+        // _Keys[idx] = (uint64_t)lower_key;
+        _Keys[idx] = lower_key;
         // _Keys[idx] = (uint64_t)(Random(idx + 0.5) * 10);
         _Payloads[idx] = idx;
         _Float_Payloads[idx] = random;

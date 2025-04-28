@@ -43,7 +43,7 @@ public class TestSort : MonoBehaviour
                     ref passHist
                 );
                 
-                m_keys = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 8) { name = "SortKey" };
+                m_keys = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 4) { name = "SortKey" };
                 // m_keys.SetData(m_writeArray);
                 m_payloads = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 4) { name = "SortPayload" };
                 m_float_payloads = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 4) { name = "SortFloatPayload" };
@@ -102,18 +102,24 @@ public class TestSort : MonoBehaviour
                     altPayload,
                     globalHist,
                     passHist,
-                    typeof(ulong),
+                    typeof(uint),
                     typeof(uint),
                     true
                     );
+
+                cmd.RequestAsyncReadback(m_keys, OnReadbackKeys);
+                cmd.RequestAsyncReadback(m_payloads, OnReadbackValues);
+                cmd.WaitAllAsyncReadbackRequests();
+                GraphicsFence fence = cmd.CreateGraphicsFence(GraphicsFenceType.AsyncQueueSynchronisation, SynchronisationStageFlags.AllGPUOperations);
+                cmd.WaitOnAsyncGraphicsFence(fence);
                 Graphics.ExecuteCommandBuffer(cmd);
                 
-                m_keys.GetData(m_readArray);
-                Debug.Log("Key: " + string.Join(", ", m_readArray));
-                m_payloads.GetData(m_readValueArray);
-                Debug.Log("Value: " + string.Join(", ", m_readValueArray));
-                m_float_payloads.GetData(m_readFloatValueArray);
-                Debug.Log("Value: " + string.Join(", ", m_readFloatValueArray));
+                // m_keys.GetData(m_readArray);
+                // Debug.Log("Key: " + string.Join(", ", m_readArray));
+                // m_payloads.GetData(m_readValueArray);
+                // Debug.Log("Value: " + string.Join(", ", m_readValueArray));
+                // m_float_payloads.GetData(m_readFloatValueArray);
+                // Debug.Log("Value: " + string.Join(", ", m_readFloatValueArray));
                 // var str2 = "Value: ";
                 // for (int i = 0; i < m_readValueArray.Length; i++)
                 // {
@@ -121,6 +127,32 @@ public class TestSort : MonoBehaviour
                 // }
                 // Debug.Log(str2);
             }
+        }
+
+        private void OnReadbackKeys(AsyncGPUReadbackRequest request)
+        {
+            if (request.hasError)
+            {
+                Debug.LogError("GPU Keys readback error");
+                return;
+            }
+
+            // 获取数据
+            uint[] data = request.GetData<uint>().ToArray();
+            Debug.Log("Key: " + string.Join(", ", data));
+        }
+        
+        private void OnReadbackValues(AsyncGPUReadbackRequest request)
+        {
+            if (request.hasError)
+            {
+                Debug.LogError("GPU Values readback error");
+                return;
+            }
+
+            // 获取数据
+            uint[] data = request.GetData<uint>().ToArray();
+            Debug.Log("Value: " + string.Join(", ", data));
         }
 
         private void OnDestroy()

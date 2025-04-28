@@ -29,7 +29,7 @@
 #define HALF_RADIX          128U    //For smaller waves where bit packing is necessary
 #define HALF_MASK           127U    // '' 
 #define RADIX_LOG           8U      //log2(RADIX)
-#define RADIX_PASSES        8U      //(Key width) / RADIX_LOG
+#define RADIX_PASSES        4U      //(Key width) / RADIX_LOG
 
 cbuffer cbGpuSorting : register(b0)
 {
@@ -68,9 +68,13 @@ RWStructuredBuffer<float> b_altPayload;
 groupshared uint g_d_high[D_TOTAL_SMEM];
 groupshared uint g_d[D_TOTAL_SMEM]; //Shared memory for DigitBinningPass and DownSweep kernels
 
+// struct KeyStruct
+// {
+//     uint64_t k[KEYS_PER_THREAD];
+// };
 struct KeyStruct
 {
-    uint64_t k[KEYS_PER_THREAD];
+    uint k[KEYS_PER_THREAD];
 };
 
 struct OffsetStruct
@@ -219,7 +223,8 @@ inline void ClearWaveHists(uint gtid)
         g_d[i] = 0;
 }
 
-inline void LoadKey(inout uint64_t key, uint index)
+// inline void LoadKey(inout uint64_t key, uint index)
+inline void LoadKey(inout uint key, uint index)
 {
 #if defined(KEY_UINT)
     key = b_sort[index];

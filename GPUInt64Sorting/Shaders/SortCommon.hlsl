@@ -65,8 +65,8 @@ RWStructuredBuffer<float> b_sortPayload;
 RWStructuredBuffer<float> b_altPayload;
 #endif
 
-// groupshared uint g_d[D_TOTAL_SMEM]; //Shared memory for DigitBinningPass and DownSweep kernels
-groupshared uint64_t g_d[D_TOTAL_SMEM]; //Shared memory for DigitBinningPass and DownSweep kernels
+groupshared uint g_d_high[D_TOTAL_SMEM];
+groupshared uint g_d[D_TOTAL_SMEM]; //Shared memory for DigitBinningPass and DownSweep kernels
 
 struct KeyStruct
 {
@@ -560,7 +560,10 @@ inline void ScatterKeysShared(OffsetStruct offsets, KeyStruct keys)
 {
     [unroll]
     for (uint i = 0; i < KEYS_PER_THREAD; ++i)
-        g_d[offsets.o[i]] = keys.k[i];
+    {
+        g_d[offsets.o[i]] = (uint)(keys.k[i] & 0xffffffff);
+        g_d_high[offsets.o[i]] = (uint)(keys.k[i] >> 32);
+    }
 }
 
 inline uint DescendingIndex(uint deviceIndex)
@@ -570,14 +573,23 @@ inline uint DescendingIndex(uint deviceIndex)
 
 inline void WriteKey(uint deviceIndex, uint groupSharedIndex)
 {
+// #if defined(KEY_UINT)
+//     b_alt[deviceIndex] = g_d[groupSharedIndex];
+// #elif defined(KEY_INT)
+//     b_alt[deviceIndex] = UintToInt(g_d[groupSharedIndex]);
+// #elif defined(KEY_FLOAT)
+//     b_alt[deviceIndex] = UintToFloat(g_d[groupSharedIndex]);
+// #elif defined(KEY_ULONG)
+//     b_alt[deviceIndex] = g_d[groupSharedIndex];
+// #endif
 #if defined(KEY_UINT)
-    b_alt[deviceIndex] = g_d[groupSharedIndex];
+b_alt[deviceIndex] = g_d[groupSharedIndex];
 #elif defined(KEY_INT)
-    b_alt[deviceIndex] = UintToInt(g_d[groupSharedIndex]);
+b_alt[deviceIndex] = UintToInt(g_d[groupSharedIndex]);
 #elif defined(KEY_FLOAT)
-    b_alt[deviceIndex] = UintToFloat(g_d[groupSharedIndex]);
+b_alt[deviceIndex] = UintToFloat(g_d[groupSharedIndex]);
 #elif defined(KEY_ULONG)
-    b_alt[deviceIndex] = g_d[groupSharedIndex];
+b_alt[deviceIndex] = (uint64_t)((g_d_high[groupSharedIndex] << 32) | g_d[groupSharedIndex]);
 #endif
 }
 

@@ -35,7 +35,8 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         // uint lower_key = idx + 10;
         // key <<= 32;
         // _Keys[idx] = key | lower_key;
-        _Keys[idx] = (uint64_t)lower_key;
+        uint64_t key = (uint64_t)lower_key;
+        _Keys[idx] = key << 2;
         // _Keys[idx] = lower_key;
         // _Keys[idx] = (uint64_t)(Random(idx + 0.5) * 10);
         _Payloads[idx] = idx;

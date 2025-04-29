@@ -147,7 +147,7 @@ namespace GPUInt64Sorting.Runtime
             GraphicsBuffer _toSort,
             GraphicsBuffer _alt)
         {
-            m_cs.Dispatch(m_kernelInit, 1, 1, 1);
+            m_cs.Dispatch(m_kernelInit, 2, 1, 1);
 
             for (int radixShift = 0; radixShift < k_passBit; radixShift += 8)
             {
@@ -172,7 +172,7 @@ namespace GPUInt64Sorting.Runtime
             GraphicsBuffer _toSort,
             GraphicsBuffer _alt)
         {
-            _cmd.DispatchCompute(m_cs, m_kernelInit, 1, 1, 1);
+            _cmd.DispatchCompute(m_cs, m_kernelInit, 2, 1, 1);
 
             for (int radixShift = 0; radixShift < k_passBit; radixShift += 8)
             {
@@ -198,7 +198,7 @@ namespace GPUInt64Sorting.Runtime
             GraphicsBuffer _alt,
             GraphicsBuffer _altPayload)
         {
-            m_cs.Dispatch(m_kernelInit, 1, 1, 1);
+            m_cs.Dispatch(m_kernelInit, 2, 1, 1);
 
             for (int radixShift = 0; radixShift < k_passBit; radixShift += 8)
             {
@@ -228,7 +228,7 @@ namespace GPUInt64Sorting.Runtime
             GraphicsBuffer _alt,
             GraphicsBuffer _altPayload)
         {
-            _cmd.DispatchCompute(m_cs, m_kernelInit, 1, 1, 1);
+            _cmd.DispatchCompute(m_cs, m_kernelInit, 2, 1, 1);
 
             for (int radixShift = 0; radixShift < k_passBit; radixShift += 8)
             {
@@ -238,13 +238,13 @@ namespace GPUInt64Sorting.Runtime
                 _cmd.DispatchCompute(m_cs, m_kernelUpsweep, numThreadBlocks, 1, 1);
 
                 _cmd.DispatchCompute(m_cs, m_kernelScan, k_radix, 1, 1);
-
+                
                 _cmd.SetComputeBufferParam(m_cs, m_kernelDownsweep, "b_sort", _toSort);
                 _cmd.SetComputeBufferParam(m_cs, m_kernelDownsweep, "b_sortPayload", _toSortPayload);
                 _cmd.SetComputeBufferParam(m_cs, m_kernelDownsweep, "b_alt", _alt);
                 _cmd.SetComputeBufferParam(m_cs, m_kernelDownsweep, "b_altPayload", _altPayload);
                 _cmd.DispatchCompute(m_cs, m_kernelDownsweep, numThreadBlocks, 1, 1);
-
+                
                 (_toSort, _alt) = (_alt, _toSort);
                 (_toSortPayload, _altPayload) = (_altPayload, _toSortPayload);
             }

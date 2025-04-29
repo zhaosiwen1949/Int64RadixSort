@@ -40,19 +40,19 @@ cbuffer cbGpuSorting : register(b0)
 };
 
 
-#if defined(KEY_UINT)
-RWStructuredBuffer<uint> b_sort;
-RWStructuredBuffer<uint> b_alt;
-#elif defined(KEY_INT)
-RWStructuredBuffer<int> b_sort;
-RWStructuredBuffer<int> b_alt;
-#elif defined(KEY_FLOAT)
-RWStructuredBuffer<float> b_sort;
-RWStructuredBuffer<float> b_alt;
-#elif defined(KEY_ULONG)
+// #if defined(KEY_UINT)
+// RWStructuredBuffer<uint> b_sort;
+// RWStructuredBuffer<uint> b_alt;
+// #elif defined(KEY_INT)
+// RWStructuredBuffer<int> b_sort;
+// RWStructuredBuffer<int> b_alt;
+// #elif defined(KEY_FLOAT)
+// RWStructuredBuffer<float> b_sort;
+// RWStructuredBuffer<float> b_alt;
+// #elif defined(KEY_ULONG)
 RWStructuredBuffer<uint64_t> b_sort;
 RWStructuredBuffer<uint64_t> b_alt;
-#endif
+// #endif
 
 #if defined(PAYLOAD_UINT)
 RWStructuredBuffer<uint> b_sortPayload;
@@ -76,6 +76,11 @@ struct KeyStruct
 // {
 //     uint k[KEYS_PER_THREAD];
 // };
+
+struct PayloadStruct
+{
+    uint k[KEYS_PER_THREAD];
+};
 
 struct OffsetStruct
 {
@@ -134,7 +139,9 @@ inline uint getWaveCountPass()
 
 inline uint64_t getGD(uint index)
 {
-    return (uint64_t)((g_d_high[index] << 32) | g_d[index]);
+    uint64_t high = g_d_high[index];
+    high <<= 32;
+    return high | ((uint64_t)g_d[index] & 0x00000000FFFFFFFF);
 }
 
 // inline uint ExtractDigit(uint key)
@@ -143,7 +150,7 @@ inline uint64_t getGD(uint index)
 // }
 inline uint ExtractDigit(uint64_t key)
 {
-    return key >> e_radixShift & RADIX_MASK;
+    return (key >> e_radixShift) & 0x00000000000000FF;
 }
 
 inline uint ExtractDigit(uint key, uint shift)
@@ -229,21 +236,24 @@ inline void ClearWaveHists(uint gtid)
     const uint histsEnd = WaveGetLaneCount() >= 16 ?
         WaveHistsSizeWGE16() : WaveHistsSizeWLT16();
     for (uint i = gtid; i < histsEnd; i += D_DIM)
+    {
         g_d[i] = 0;
+        g_d_high[i]= 0;
+    }    
 }
 
 inline void LoadKey(inout uint64_t key, uint index)
 // inline void LoadKey(inout uint key, uint index)
 {
-#if defined(KEY_UINT)
+// #if defined(KEY_UINT)
+//     key = b_sort[index];
+// #elif defined(KEY_INT)
+//     key = UintToInt(b_sort[index]);
+// #elif defined(KEY_FLOAT)
+//     key = FloatToUint(b_sort[index]);
+// #elif defined(KEY_ULONG)
     key = b_sort[index];
-#elif defined(KEY_INT)
-    key = UintToInt(b_sort[index]);
-#elif defined(KEY_FLOAT)
-    key = FloatToUint(b_sort[index]);
-#elif defined(KEY_ULONG)
-    key = b_sort[index];
-#endif
+// #endif
 }
 
 inline void LoadDummyKey(inout uint64_t key)
@@ -322,7 +332,8 @@ inline uint WaveFlagsWLT16()
     return (1U << WaveGetLaneCount()) - 1;;
 }
 
-inline void WarpLevelMultiSplitWGE16(uint key, uint waveParts, inout uint4 waveFlags)
+inline void WarpLevelMultiSplitWGE16(uint64_t key, uint waveParts, inout uint4 waveFlags)
+// inline void WarpLevelMultiSplitWGE16(uint key, uint waveParts, inout uint4 waveFlags)
 {
     [unroll]
     for (uint k = 0; k < RADIX_LOG; ++k)
@@ -577,7 +588,7 @@ inline void ScatterKeysShared(OffsetStruct offsets, KeyStruct keys)
     [unroll]
     for (uint i = 0; i < KEYS_PER_THREAD; ++i)
     {
-        g_d[offsets.o[i]] = (uint)(keys.k[i] & 0xffffffff);
+        g_d[offsets.o[i]] = (uint)(keys.k[i] & 0x00000000ffffffff);
         g_d_high[offsets.o[i]] = (uint)(keys.k[i] >> 32);
     }
 }
@@ -609,9 +620,13 @@ inline void LoadPayload(inout uint payload, uint deviceIndex)
 #endif
 }
 
-inline void ScatterPayloadsShared(OffsetStruct offsets, KeyStruct payloads)
+inline void ScatterPayloadsShared(OffsetStruct offsets, PayloadStruct payloads)
 {
-    ScatterKeysShared(offsets, payloads);
+    [unroll]
+    for (uint i = 0; i < KEYS_PER_THREAD; ++i)
+    {
+        g_d[offsets.o[i]] = payloads.k[i];
+    }
 }
 
 inline void WritePayload(uint deviceIndex, uint groupSharedIndex)
@@ -696,7 +711,7 @@ inline void ScatterPairsKeyPhaseDescending(
 inline void LoadPayloadsWGE16(
     uint gtid,
     uint partIndex,
-    inout KeyStruct payloads)
+    inout PayloadStruct payloads)
 {
     [unroll]
     for (uint i = 0, t = DeviceOffsetWGE16(gtid, partIndex);
@@ -711,7 +726,7 @@ inline void LoadPayloadsWLT16(
     uint gtid,
     uint partIndex,
     uint serialIterations,
-    inout KeyStruct payloads)
+    inout PayloadStruct payloads)
 {
     [unroll]
     for (uint i = 0, t = DeviceOffsetWLT16(gtid, partIndex, serialIterations);
@@ -731,7 +746,8 @@ inline void ScatterPayloadsAscending(uint gtid, DigitStruct digits)
 
 inline void ScatterPayloadsDescending(uint gtid, DigitStruct digits)
 {
-    if (e_radixShift == 24)
+    // if (e_radixShift == 24)
+    if (e_radixShift == 56)
     {
         [unroll]
         for (uint i = 0, t = gtid; i < KEYS_PER_THREAD; ++i, t += D_DIM)
@@ -756,7 +772,7 @@ inline void ScatterPairsDevice(
 #endif
     GroupMemoryBarrierWithGroupSync();
     
-    KeyStruct payloads;
+    PayloadStruct payloads;
     if (WaveGetLaneCount() >= 16)
         LoadPayloadsWGE16(gtid, partIndex, payloads);
     else
@@ -872,7 +888,7 @@ inline void ScatterPairsKeyPhaseDescendingPartial(
 inline void LoadPayloadsPartialWGE16(
     uint gtid,
     uint partIndex,
-    inout KeyStruct payloads)
+    inout PayloadStruct payloads)
 {
     [unroll]
     for (uint i = 0, t = DeviceOffsetWGE16(gtid, partIndex);
@@ -888,7 +904,7 @@ inline void LoadPayloadsPartialWLT16(
     uint gtid,
     uint partIndex,
     uint serialIterations,
-    inout KeyStruct payloads)
+    inout PayloadStruct payloads)
 {
     [unroll]
     for (uint i = 0, t = DeviceOffsetWLT16(gtid, partIndex, serialIterations);
@@ -947,7 +963,7 @@ inline void ScatterPairsDevicePartial(
 #endif
     GroupMemoryBarrierWithGroupSync();
     
-    KeyStruct payloads;
+    PayloadStruct payloads;
     if (WaveGetLaneCount() >= 16)
         LoadPayloadsPartialWGE16(gtid, partIndex, payloads);
     else

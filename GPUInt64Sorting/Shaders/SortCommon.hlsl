@@ -30,6 +30,7 @@
 #define HALF_MASK           127U    // '' 
 #define RADIX_LOG           8U      //log2(RADIX)
 #define RADIX_PASSES        8U      //(Key width) / RADIX_LOG
+#define RADIX_LAST_BIT      56U
 
 cbuffer cbGpuSorting : register(b0)
 {
@@ -653,7 +654,7 @@ inline void ScatterKeysOnlyDeviceAscending(uint gtid)
 
 inline void ScatterKeysOnlyDeviceDescending(uint gtid)
 {
-    if (e_radixShift == 24)
+    if (e_radixShift == RADIX_LAST_BIT)
     {
         for (uint i = gtid; i < PART_SIZE; i += D_DIM)
             // WriteKey(DescendingIndex(g_d[ExtractDigit(g_d[i]) + PART_SIZE] + i), i);
@@ -692,7 +693,7 @@ inline void ScatterPairsKeyPhaseDescending(
     uint gtid,
     inout DigitStruct digits)
 {
-    if (e_radixShift == 24)
+    if (e_radixShift == RADIX_LAST_BIT)
     {
         [unroll]
         for (uint i = 0, t = gtid; i < KEYS_PER_THREAD; ++i, t += D_DIM)
@@ -746,8 +747,7 @@ inline void ScatterPayloadsAscending(uint gtid, DigitStruct digits)
 
 inline void ScatterPayloadsDescending(uint gtid, DigitStruct digits)
 {
-    // if (e_radixShift == 24)
-    if (e_radixShift == 56)
+    if (e_radixShift == RADIX_LAST_BIT)
     {
         [unroll]
         for (uint i = 0, t = gtid; i < KEYS_PER_THREAD; ++i, t += D_DIM)
@@ -818,7 +818,7 @@ inline void ScatterKeysOnlyDevicePartialAscending(uint gtid, uint finalPartSize)
 
 inline void ScatterKeysOnlyDevicePartialDescending(uint gtid, uint finalPartSize)
 {
-    if (e_radixShift == 24)
+    if (e_radixShift == RADIX_LAST_BIT)
     {
         for (uint i = gtid; i < PART_SIZE; i += D_DIM)
         {
@@ -866,7 +866,7 @@ inline void ScatterPairsKeyPhaseDescendingPartial(
     uint finalPartSize,
     inout DigitStruct digits)
 {
-    if (e_radixShift == 24)
+    if (e_radixShift == RADIX_LAST_BIT)
     {
         [unroll]
         for (uint i = 0, t = gtid; i < KEYS_PER_THREAD; ++i, t += D_DIM)
@@ -934,7 +934,7 @@ inline void ScatterPayloadsDescendingPartial(
     uint finalPartSize,
     DigitStruct digits)
 {
-    if (e_radixShift == 24)
+    if (e_radixShift == RADIX_LAST_BIT)
     {
         [unroll]
         for (uint i = 0, t = gtid; i < KEYS_PER_THREAD; ++i, t += D_DIM)

@@ -43,7 +43,7 @@ public class TestSort : MonoBehaviour
                     ref passHist
                 );
                 
-                m_keys = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 4) { name = "SortKey" };
+                m_keys = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 8) { name = "SortKey" };
                 // m_keys.SetData(m_writeArray);
                 m_payloads = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 4) { name = "SortPayload" };
                 m_float_payloads = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 4) { name = "SortFloatPayload" };
@@ -102,7 +102,7 @@ public class TestSort : MonoBehaviour
                     altPayload,
                     globalHist,
                     passHist,
-                    typeof(uint),
+                    typeof(ulong),
                     typeof(uint),
                     true
                     );
@@ -138,7 +138,7 @@ public class TestSort : MonoBehaviour
             }
 
             // 获取数据
-            uint[] data = request.GetData<uint>().ToArray();
+            ulong[] data = request.GetData<ulong>().ToArray();
             Debug.Log("Key: " + string.Join(", ", data));
         }
         

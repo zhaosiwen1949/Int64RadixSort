@@ -29,7 +29,7 @@
 #define HALF_RADIX          128U    //For smaller waves where bit packing is necessary
 #define HALF_MASK           127U    // '' 
 #define RADIX_LOG           8U      //log2(RADIX)
-#define RADIX_PASSES        4U      //(Key width) / RADIX_LOG
+#define RADIX_PASSES        8U      //(Key width) / RADIX_LOG
 
 cbuffer cbGpuSorting : register(b0)
 {
@@ -68,14 +68,14 @@ RWStructuredBuffer<float> b_altPayload;
 groupshared uint g_d_high[D_TOTAL_SMEM];
 groupshared uint g_d[D_TOTAL_SMEM]; //Shared memory for DigitBinningPass and DownSweep kernels
 
-// struct KeyStruct
-// {
-//     uint64_t k[KEYS_PER_THREAD];
-// };
 struct KeyStruct
 {
-    uint k[KEYS_PER_THREAD];
+    uint64_t k[KEYS_PER_THREAD];
 };
+// struct KeyStruct
+// {
+//     uint k[KEYS_PER_THREAD];
+// };
 
 struct OffsetStruct
 {
@@ -132,7 +132,16 @@ inline uint getWaveCountPass()
     return D_DIM / WaveGetLaneCount();
 }
 
-inline uint ExtractDigit(uint key)
+inline uint64_t getGD(uint index)
+{
+    return (uint64_t)((g_d_high[index] << 32) | g_d[index]);
+}
+
+// inline uint ExtractDigit(uint key)
+// {
+//     return key >> e_radixShift & RADIX_MASK;
+// }
+inline uint ExtractDigit(uint64_t key)
 {
     return key >> e_radixShift & RADIX_MASK;
 }
@@ -223,8 +232,8 @@ inline void ClearWaveHists(uint gtid)
         g_d[i] = 0;
 }
 
-// inline void LoadKey(inout uint64_t key, uint index)
-inline void LoadKey(inout uint key, uint index)
+inline void LoadKey(inout uint64_t key, uint index)
+// inline void LoadKey(inout uint key, uint index)
 {
 #if defined(KEY_UINT)
     key = b_sort[index];
@@ -237,9 +246,11 @@ inline void LoadKey(inout uint key, uint index)
 #endif
 }
 
-inline void LoadDummyKey(inout uint key)
+inline void LoadDummyKey(inout uint64_t key)
+// inline void LoadDummyKey(inout uint key)
 {
-    key = 0xffffffff;
+    // key = 0xffffffff;
+    key = 0xffffffffffffffff;
 }
 
 inline KeyStruct LoadKeysWGE16(uint gtid, uint partIndex)
@@ -578,15 +589,6 @@ inline uint DescendingIndex(uint deviceIndex)
 
 inline void WriteKey(uint deviceIndex, uint groupSharedIndex)
 {
-// #if defined(KEY_UINT)
-//     b_alt[deviceIndex] = g_d[groupSharedIndex];
-// #elif defined(KEY_INT)
-//     b_alt[deviceIndex] = UintToInt(g_d[groupSharedIndex]);
-// #elif defined(KEY_FLOAT)
-//     b_alt[deviceIndex] = UintToFloat(g_d[groupSharedIndex]);
-// #elif defined(KEY_ULONG)
-//     b_alt[deviceIndex] = g_d[groupSharedIndex];
-// #endif
 #if defined(KEY_UINT)
 b_alt[deviceIndex] = g_d[groupSharedIndex];
 #elif defined(KEY_INT)
@@ -594,7 +596,7 @@ b_alt[deviceIndex] = UintToInt(g_d[groupSharedIndex]);
 #elif defined(KEY_FLOAT)
 b_alt[deviceIndex] = UintToFloat(g_d[groupSharedIndex]);
 #elif defined(KEY_ULONG)
-b_alt[deviceIndex] = (uint64_t)((g_d_high[groupSharedIndex] << 32) | g_d[groupSharedIndex]);
+b_alt[deviceIndex] = getGD(groupSharedIndex);
 #endif
 }
 
@@ -630,7 +632,8 @@ inline void WritePayload(uint deviceIndex, uint groupSharedIndex)
 inline void ScatterKeysOnlyDeviceAscending(uint gtid)
 {
     for (uint i = gtid; i < PART_SIZE; i += D_DIM)
-        WriteKey(g_d[ExtractDigit(g_d[i]) + PART_SIZE] + i, i);
+        // WriteKey(g_d[ExtractDigit(g_d[i]) + PART_SIZE] + i, i);
+        WriteKey(g_d[ExtractDigit(getGD(i)) + PART_SIZE] + i, i);
 }
 
 inline void ScatterKeysOnlyDeviceDescending(uint gtid)
@@ -638,7 +641,8 @@ inline void ScatterKeysOnlyDeviceDescending(uint gtid)
     if (e_radixShift == 24)
     {
         for (uint i = gtid; i < PART_SIZE; i += D_DIM)
-            WriteKey(DescendingIndex(g_d[ExtractDigit(g_d[i]) + PART_SIZE] + i), i);
+            // WriteKey(DescendingIndex(g_d[ExtractDigit(g_d[i]) + PART_SIZE] + i), i);
+            WriteKey(DescendingIndex(g_d[ExtractDigit(getGD(i)) + PART_SIZE] + i), i);
     }
     else
     {
@@ -663,7 +667,8 @@ inline void ScatterPairsKeyPhaseAscending(
     [unroll]
     for (uint i = 0, t = gtid; i < KEYS_PER_THREAD; ++i, t += D_DIM)
     {
-        digits.d[i] = ExtractDigit(g_d[t]);
+        // digits.d[i] = ExtractDigit(g_d[t]);
+        digits.d[i] = ExtractDigit(getGD(t));
         WriteKey(g_d[digits.d[i] + PART_SIZE] + t, t);
     }
 }
@@ -677,7 +682,8 @@ inline void ScatterPairsKeyPhaseDescending(
         [unroll]
         for (uint i = 0, t = gtid; i < KEYS_PER_THREAD; ++i, t += D_DIM)
         {
-            digits.d[i] = ExtractDigit(g_d[t]);
+            // digits.d[i] = ExtractDigit(g_d[t]);
+            digits.d[i] = ExtractDigit(getGD(t));
             WriteKey(DescendingIndex(g_d[digits.d[i] + PART_SIZE] + t), t);
         }
     }
@@ -789,7 +795,8 @@ inline void ScatterKeysOnlyDevicePartialAscending(uint gtid, uint finalPartSize)
     for (uint i = gtid; i < PART_SIZE; i += D_DIM)
     {
         if (i < finalPartSize)
-            WriteKey(g_d[ExtractDigit(g_d[i]) + PART_SIZE] + i, i);
+            // WriteKey(g_d[ExtractDigit(g_d[i]) + PART_SIZE] + i, i);
+            WriteKey(g_d[ExtractDigit(getGD(i)) + PART_SIZE] + i, i);
     }
 }
 
@@ -800,7 +807,8 @@ inline void ScatterKeysOnlyDevicePartialDescending(uint gtid, uint finalPartSize
         for (uint i = gtid; i < PART_SIZE; i += D_DIM)
         {
             if (i < finalPartSize)
-                WriteKey(DescendingIndex(g_d[ExtractDigit(g_d[i]) + PART_SIZE] + i), i);
+                // WriteKey(DescendingIndex(g_d[ExtractDigit(g_d[i]) + PART_SIZE] + i), i);
+                WriteKey(DescendingIndex(g_d[ExtractDigit(getGD(i)) + PART_SIZE] + i), i);
         }
     }
     else
@@ -830,7 +838,8 @@ inline void ScatterPairsKeyPhaseAscendingPartial(
     {
         if (t < finalPartSize)
         {
-            digits.d[i] = ExtractDigit(g_d[t]);
+            // digits.d[i] = ExtractDigit(g_d[t]);
+            digits.d[i] = ExtractDigit(getGD(t));
             WriteKey(g_d[digits.d[i] + PART_SIZE] + t, t);
         }
     }
@@ -848,7 +857,8 @@ inline void ScatterPairsKeyPhaseDescendingPartial(
         {
             if (t < finalPartSize)
             {
-                digits.d[i] = ExtractDigit(g_d[t]);
+                // digits.d[i] = ExtractDigit(g_d[t]);
+                digits.d[i] = ExtractDigit(getGD(t));
                 WriteKey(DescendingIndex(g_d[digits.d[i] + PART_SIZE] + t), t);
             }
         }

@@ -41,19 +41,19 @@ cbuffer cbGpuSorting : register(b0)
 };
 
 
-// #if defined(KEY_UINT)
-// RWStructuredBuffer<uint> b_sort;
-// RWStructuredBuffer<uint> b_alt;
-// #elif defined(KEY_INT)
-// RWStructuredBuffer<int> b_sort;
-// RWStructuredBuffer<int> b_alt;
-// #elif defined(KEY_FLOAT)
-// RWStructuredBuffer<float> b_sort;
-// RWStructuredBuffer<float> b_alt;
-// #elif defined(KEY_ULONG)
+#if defined(KEY_UINT)
+RWStructuredBuffer<uint> b_sort;
+RWStructuredBuffer<uint> b_alt;
+#elif defined(KEY_INT)
+RWStructuredBuffer<int> b_sort;
+RWStructuredBuffer<int> b_alt;
+#elif defined(KEY_FLOAT)
+RWStructuredBuffer<float> b_sort;
+RWStructuredBuffer<float> b_alt;
+#elif defined(KEY_ULONG)
 RWStructuredBuffer<uint64_t> b_sort;
 RWStructuredBuffer<uint64_t> b_alt;
-// #endif
+#endif
 
 #if defined(PAYLOAD_UINT)
 RWStructuredBuffer<uint> b_sortPayload;
@@ -246,15 +246,15 @@ inline void ClearWaveHists(uint gtid)
 inline void LoadKey(inout uint64_t key, uint index)
 // inline void LoadKey(inout uint key, uint index)
 {
-// #if defined(KEY_UINT)
-//     key = b_sort[index];
-// #elif defined(KEY_INT)
-//     key = UintToInt(b_sort[index]);
-// #elif defined(KEY_FLOAT)
-//     key = FloatToUint(b_sort[index]);
-// #elif defined(KEY_ULONG)
+#if defined(KEY_UINT)
     key = b_sort[index];
-// #endif
+#elif defined(KEY_INT)
+    key = UintToInt(b_sort[index]);
+#elif defined(KEY_FLOAT)
+    key = FloatToUint(b_sort[index]);
+#elif defined(KEY_ULONG)
+    key = b_sort[index];
+#endif
 }
 
 inline void LoadDummyKey(inout uint64_t key)

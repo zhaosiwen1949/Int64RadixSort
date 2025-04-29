@@ -142,7 +142,7 @@ inline uint64_t getGD(uint index)
 {
     uint64_t high = g_d_high[index];
     high <<= 32;
-    return high | ((uint64_t)g_d[index] & 0x00000000FFFFFFFF);
+    return high | ((uint64_t)g_d[index] & (((uint64_t)1U << 32) - 1));
 }
 
 // inline uint ExtractDigit(uint key)
@@ -151,7 +151,7 @@ inline uint64_t getGD(uint index)
 // }
 inline uint ExtractDigit(uint64_t key)
 {
-    return (key >> e_radixShift) & 0x00000000000000FF;
+    return key >> e_radixShift & RADIX_MASK;
 }
 
 inline uint ExtractDigit(uint key, uint shift)
@@ -589,7 +589,7 @@ inline void ScatterKeysShared(OffsetStruct offsets, KeyStruct keys)
     [unroll]
     for (uint i = 0; i < KEYS_PER_THREAD; ++i)
     {
-        g_d[offsets.o[i]] = (uint)(keys.k[i] & 0x00000000ffffffff);
+        g_d[offsets.o[i]] = (uint)(keys.k[i] & (((uint64_t)1U << 32) - 1));
         g_d_high[offsets.o[i]] = (uint)(keys.k[i] >> 32);
     }
 }

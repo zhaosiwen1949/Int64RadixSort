@@ -13,7 +13,8 @@ public class TestSort : MonoBehaviour
         
         protected const int k_partitionSize = 3840;
         protected const int k_maxTestSize = count + 10;
-        
+
+        protected GraphicsBuffer m_numArgs;
         protected GraphicsBuffer m_keys;
         protected GraphicsBuffer m_payloads;
         protected GraphicsBuffer m_float_payloads;
@@ -43,6 +44,7 @@ public class TestSort : MonoBehaviour
                     ref passHist
                 );
                 
+                m_numArgs = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 4, 4) { name = "NumArgs" };
                 m_keys = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 8) { name = "SortKey" };
                 // m_keys.SetData(m_writeArray);
                 m_payloads = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, 4) { name = "SortPayload" };
@@ -93,9 +95,16 @@ public class TestSort : MonoBehaviour
                 cmd.SetComputeBufferParam(m_initShader, 0, "_Float_Payloads", m_float_payloads);
                 cmd.DispatchCompute(m_initShader, 0, count / 8, 1, 1);
                 
+                cmd.SetComputeIntParam(m_initShader, "Size", count);
+                cmd.SetComputeIntParam(m_initShader, "e_min", 2);
+                cmd.SetComputeIntParam(m_initShader, "e_max", k_maxTestSize);
+                cmd.SetComputeIntParam(m_initShader, "e_partitionSize", k_partitionSize);
+                cmd.SetComputeBufferParam(m_initShader, 1, "e_numArgs", m_numArgs);
+                cmd.DispatchCompute(m_initShader, 1, 1, 1, 1);
+                
                 m_sorter.Sort(
                     cmd,
-                    count,
+                    m_numArgs,
                     m_keys,
                     m_payloads,
                     altKey,
@@ -109,6 +118,7 @@ public class TestSort : MonoBehaviour
 
                 cmd.RequestAsyncReadback(m_keys, OnReadbackKeys);
                 cmd.RequestAsyncReadback(m_payloads, OnReadbackValues);
+                cmd.RequestAsyncReadback(m_numArgs, OnReadbackArgs);
                 cmd.WaitAllAsyncReadbackRequests();
                 GraphicsFence fence = cmd.CreateGraphicsFence(GraphicsFenceType.AsyncQueueSynchronisation, SynchronisationStageFlags.AllGPUOperations);
                 cmd.WaitOnAsyncGraphicsFence(fence);
@@ -154,9 +164,23 @@ public class TestSort : MonoBehaviour
             uint[] data = request.GetData<uint>().ToArray();
             Debug.Log("Value: " + string.Join(", ", data));
         }
+        
+        private void OnReadbackArgs(AsyncGPUReadbackRequest request)
+        {
+            if (request.hasError)
+            {
+                Debug.LogError("GPU Values readback error");
+                return;
+            }
+
+            // 获取数据
+            uint[] data = request.GetData<uint>().ToArray();
+            Debug.Log("Args: " + string.Join(", ", data));
+        }
 
         private void OnDestroy()
         {
+            m_numArgs.Dispose();
             m_keys.Dispose();
             m_payloads.Dispose();
             m_float_payloads.Dispose();

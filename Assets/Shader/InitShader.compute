@@ -1,5 +1,6 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
+#pragma kernel InitNumArgs
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
@@ -11,6 +12,11 @@ RWStructuredBuffer<uint64_t> _Keys;
 RWStructuredBuffer<uint> _Payloads;
 RWStructuredBuffer<float> _Float_Payloads;
 uint Size;
+uint e_min;
+uint e_max;
+uint e_partitionSize;
+
+RWStructuredBuffer<uint> e_numArgs;
 
 float Random(float n,float factor = 10000){
     return frac(sin(n)*factor)*frac(cos(n)*factor);
@@ -44,4 +50,15 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         // _Payloads[idx] = lower_key;
         // _Payloads[idx] = Random(idx + 0.5) * 10;
     }
+}
+
+[numthreads(1,1,1)]
+void InitNumArgs (uint3 id : SV_DispatchThreadID)
+{
+    e_numArgs[0] = clamp(Size, e_min, e_max);
+    e_numArgs[1] = (Size + e_partitionSize - 1) / e_partitionSize;
+    // e_numArgs[0] = 16;
+    // e_numArgs[1] = 1;
+    e_numArgs[2] = 1;
+    e_numArgs[3] = 1;
 }

@@ -141,6 +141,29 @@ namespace GPUInt64Sorting.Runtime
             _cmd.SetComputeBufferParam(m_cs, m_kernelDownsweep, "b_passHist", _passHistBuffer);
             _cmd.SetComputeBufferParam(m_cs, m_kernelDownsweep, "b_globalHist", _globalHistBuffer);
         }
+        
+        private void SetStaticRootParameters(
+            CommandBuffer _cmd,
+            GraphicsBuffer _numArgsBuffer,
+            GraphicsBuffer _passHistBuffer,
+            GraphicsBuffer _globalHistBuffer)
+        {
+            // _cmd.SetComputeIntParam(m_cs, "e_numKeys", numKeys);
+            // _cmd.SetComputeIntParam(m_cs, "e_threadBlocks", numThreadBlocks);
+            
+            _cmd.SetComputeBufferParam(m_cs, m_kernelInit, "b_globalHist", _globalHistBuffer);
+
+            _cmd.SetComputeBufferParam(m_cs, m_kernelUpsweep, "b_passHist", _passHistBuffer);
+            _cmd.SetComputeBufferParam(m_cs, m_kernelUpsweep, "b_globalHist", _globalHistBuffer);
+            _cmd.SetComputeBufferParam(m_cs, m_kernelUpsweep, "e_numArgs", _numArgsBuffer);
+
+            _cmd.SetComputeBufferParam(m_cs, m_kernelScan, "b_passHist", _passHistBuffer);
+            _cmd.SetComputeBufferParam(m_cs, m_kernelScan, "e_numArgs", _numArgsBuffer);
+
+            _cmd.SetComputeBufferParam(m_cs, m_kernelDownsweep, "b_passHist", _passHistBuffer);
+            _cmd.SetComputeBufferParam(m_cs, m_kernelDownsweep, "b_globalHist", _globalHistBuffer);
+            _cmd.SetComputeBufferParam(m_cs, m_kernelDownsweep, "e_numArgs", _numArgsBuffer);
+        }
 
         private void Dispatch(
             int numThreadBlocks,
@@ -249,6 +272,36 @@ namespace GPUInt64Sorting.Runtime
                 (_toSortPayload, _altPayload) = (_altPayload, _toSortPayload);
             }
         }
+        
+        private void Dispatch(
+            CommandBuffer _cmd,
+            GraphicsBuffer _numArgsBuffer,
+            GraphicsBuffer _toSort,
+            GraphicsBuffer _toSortPayload,
+            GraphicsBuffer _alt,
+            GraphicsBuffer _altPayload)
+        {
+            _cmd.DispatchCompute(m_cs, m_kernelInit, 2, 1, 1);
+
+            for (int radixShift = 0; radixShift < k_passBit; radixShift += 8)
+            {
+                _cmd.SetComputeIntParam(m_cs, "e_radixShift", radixShift);
+
+                _cmd.SetComputeBufferParam(m_cs, m_kernelUpsweep, "b_sort", _toSort);
+                _cmd.DispatchCompute(m_cs, m_kernelUpsweep, _numArgsBuffer, 4);
+                
+                _cmd.DispatchCompute(m_cs, m_kernelScan, k_radix, 1, 1);
+                
+                _cmd.SetComputeBufferParam(m_cs, m_kernelDownsweep, "b_sort", _toSort);
+                _cmd.SetComputeBufferParam(m_cs, m_kernelDownsweep, "b_sortPayload", _toSortPayload);
+                _cmd.SetComputeBufferParam(m_cs, m_kernelDownsweep, "b_alt", _alt);
+                _cmd.SetComputeBufferParam(m_cs, m_kernelDownsweep, "b_altPayload", _altPayload);
+                _cmd.DispatchCompute(m_cs, m_kernelDownsweep, _numArgsBuffer, 4);
+                
+                (_toSort, _alt) = (_alt, _toSort);
+                (_toSortPayload, _altPayload) = (_altPayload, _toSortPayload);
+            }
+        }
 
         private void AssertChecksKeys(int _inputSize, System.Type _keyType)
         {
@@ -265,6 +318,20 @@ namespace GPUInt64Sorting.Runtime
         {
             Assert.IsFalse(k_keysOnly);
             Assert.IsTrue(_inputSize > k_minSize && _inputSize <= k_maxKeysAllocated);
+            Assert.IsTrue(
+                _keyType == typeof(uint)    ||
+                _keyType == typeof(float)   ||
+                _keyType == typeof(int)     ||
+                _keyType == typeof(ulong));
+            Assert.IsTrue(
+                _payloadType == typeof(uint)    || 
+                _payloadType == typeof(float)   || 
+                _payloadType == typeof(int));
+        }
+        
+        private void AssertChecksPairs(System.Type _keyType, System.Type _payloadType)
+        {
+            Assert.IsFalse(k_keysOnly);
             Assert.IsTrue(
                 _keyType == typeof(uint)    ||
                 _keyType == typeof(float)   ||
@@ -375,6 +442,31 @@ namespace GPUInt64Sorting.Runtime
                 tempPassHistBuffer,
                 tempGlobalHistBuffer);
             Dispatch(threadBlocks, cmd, toSort, toSortPayload, tempKeyBuffer, tempPayloadBuffer);
+        }
+        
+        public void Sort(
+            CommandBuffer cmd,
+            GraphicsBuffer sortSize,
+            GraphicsBuffer toSort,
+            GraphicsBuffer toSortPayload,
+            GraphicsBuffer tempKeyBuffer,
+            GraphicsBuffer tempPayloadBuffer,
+            GraphicsBuffer tempGlobalHistBuffer,
+            GraphicsBuffer tempPassHistBuffer,
+            System.Type keyType,
+            System.Type payloadType,
+            bool shouldAscend)
+        {
+            AssertChecksPairs(keyType, payloadType);
+            SetKeyTypeKeywords(cmd, keyType);
+            SetPayloadTypeKeywords(cmd, payloadType);
+            SetAscendingKeyWords(cmd, shouldAscend);
+            SetStaticRootParameters(
+                cmd,
+                sortSize,
+                tempPassHistBuffer,
+                tempGlobalHistBuffer);
+            Dispatch(cmd, sortSize, toSort, toSortPayload, tempKeyBuffer, tempPayloadBuffer);
         }
     }
 }
